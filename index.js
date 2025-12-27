@@ -4,10 +4,12 @@ const dbConn = require('./config/db');
 const authRoutes = require("./routes/auth.routes");
 const walletRoutes = require("./routes/wallet.routes");
 const rewardsRoutes = require("./routes/rewards.routes");
-
 dotenv.config();
 
+
+
 const app = express();
+app.use(require("./midleware/logger.middleware"));
 const PORT = process.env.PORT;
 const databaseURI = process.env.MONGODB_URI;
 
@@ -62,13 +64,18 @@ async function startServer() {
 }
 
 // JSON syntax error handler
-app.use((err, req, res, next) => {
-  if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
-    return res.status(400).json({
-      message: "Invalid JSON payload",
-    });
-  }
-  next(err);
+// app.use((err, req, res, next) => {
+//   if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
+//     return res.status(400).json({
+//       message: "Invalid JSON payload",
+//     });
+//   }
+//   next(err);
+// });
+
+app.use((req, res, next) => {
+  res.status(404).json({ success: false, error: { message: "Not Found" } });
 });
 
+app.use(require("./midleware/error.middleware"));
 startServer();

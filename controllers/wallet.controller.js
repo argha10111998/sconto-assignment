@@ -1,7 +1,7 @@
 const Wallet = require("../models/wallet");
 const Transaction = require("../models/transaction");
 
-exports.getWallet = async (req, res) => {
+exports.getWallet = async (req, res, next) => {
   try{
    
     const wallet = await Wallet.findOne({ userId: req.userId });
@@ -9,22 +9,26 @@ exports.getWallet = async (req, res) => {
 
     res.json({ balance: wallet.balance, transactions });
   }catch(err){
-    console.error(err);
-    res.status(500).json({ message: "Internal server error" });
+    next(err);
   }
   
 };
 
-exports.addMoney = async (req, res) => {
+exports.addMoney = async (req, res, next) => {
 
   try{
-    if (!req.body || Object.keys(req.body).length === 0) {
-      return res.status(400).json({
-        message: "Request body is missing",
-      });
-    }
+    
     const { amount } = req.body;
-    if (amount <= 0) return res.status(400).json({ message: "Invalid amount" });
+    if(!amount){
+      const err = new Error("Amount Required");
+      err.statusCode = 400;
+      throw err;
+    }
+    if (amount <= 0){
+      const err = new Error("Invalid amount");
+      err.statusCode = 400;
+      throw err;
+    } 
 
     const wallet = await Wallet.findOne({ userId: req.userId });
     wallet.balance += amount;
@@ -38,24 +42,33 @@ exports.addMoney = async (req, res) => {
 
     res.json({ message: "Money added successfully" });
   }catch(err){
-    console.error(err);
-    res.status(500).json({ message: "Internal server error" });
+    next(err);
   }
   
 };
 
-exports.redeemMoney = async (req, res) => {
+exports.redeemMoney = async (req, res, next) => {
   try{
-    if (!req.body || Object.keys(req.body).length === 0) {
-      return res.status(400).json({
-        message: "Request body is missing",
-      });
-    }
     const { amount } = req.body;
+    if(!amount){
+      const err = new Error("Amount Required");
+      err.statusCode = 400;
+      throw err;
+    }
+    if (amount <= 0){
+      const err = new Error("Invalid amount");
+      err.statusCode = 400;
+      throw err;
+    } 
     const wallet = await Wallet.findOne({ userId: req.userId });
 
-    if (wallet.balance < amount)
-      return res.status(400).json({ message: "Insufficient Balance" });
+    if (wallet.balance < amount){
+      const err = new Error("Insufficient Balance");
+      err.statusCode = 400;
+      throw err;
+    }
+      
+    
 
     wallet.balance -= amount;
     await wallet.save();
@@ -68,8 +81,7 @@ exports.redeemMoney = async (req, res) => {
 
     res.json({ message: "Amount redeemed successfully" });
   }catch(err){
-    console.error(err);
-    res.status(500).json({ message: "Internal server error" });
+    next(err);
   }
 
 };
