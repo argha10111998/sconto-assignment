@@ -1,0 +1,4 @@
+[
+  { "v": 2, "key": { "_id": 1 }, "name": "id_" },
+  { "v": 2, "key": { "userId": 1 }, "name": "userId_1" }
+]
