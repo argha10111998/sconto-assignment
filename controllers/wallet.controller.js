@@ -3,11 +3,7 @@ const Transaction = require("../models/transaction");
 
 exports.getWallet = async (req, res) => {
   try{
-    if (!req.body || Object.keys(req.body).length === 0) {
-      return res.status(400).json({
-        message: "Request body is missing",
-      });
-    }
+   
     const wallet = await Wallet.findOne({ userId: req.userId });
     const transactions = await Transaction.find({ userId: req.userId });
 
