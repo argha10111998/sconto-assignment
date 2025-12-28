@@ -15,16 +15,14 @@ exports.getWallet = async (req, res, next) => {
 };
 
 exports.addMoney = async (req, res, next) => {
-  const session = await mongoose.startSession();
-
   try {
+    // ✅ 1. Validate request body BEFORE starting session
     if (!req.body || Object.keys(req.body).length === 0) {
       const err = new Error("Request body is missing");
       err.statusCode = 400;
       throw err;
     }
-    session.startTransaction();
-    
+
     const { amount } = req.body;
 
     if (!amount || amount <= 0) {
@@ -33,52 +31,61 @@ exports.addMoney = async (req, res, next) => {
       throw err;
     }
 
-    const wallet = await Wallet.findOneAndUpdate(
-      { userId: req.userId },
-      { $inc: { balance: amount } },
-      { new: true, session }
-    );
+    // ✅ 2. Start session only after validation passes
+    const session = await mongoose.startSession();
 
-    if (!wallet) {
-      const err = new Error("Wallet not found");
-      err.statusCode = 404;
+    try {
+      session.startTransaction();
+
+      const wallet = await Wallet.findOneAndUpdate(
+        { userId: req.userId },
+        { $inc: { balance: amount } },
+        { new: true, session }
+      );
+
+      if (!wallet) {
+        const err = new Error("Wallet not found");
+        err.statusCode = 404;
+        throw err;
+      }
+
+      await Transaction.create(
+        [{
+          userId: req.userId,
+          type: "CREDIT",
+          amount,
+        }],
+        { session }
+      );
+
+      await session.commitTransaction();
+      session.endSession();
+
+      res.status(200).json({
+        success: true,
+        message: "Money added successfully",
+        balance: wallet.balance,
+      });
+
+    } catch (err) {
+      await session.abortTransaction();
+      session.endSession();
       throw err;
     }
 
-    await Transaction.create([{
-      userId: req.userId,
-      type: "CREDIT",
-      amount,
-    }], { session });
-
-    await session.commitTransaction();
-    session.endSession();
-
-    res.status(200).json({
-      success: true,
-      message: "Money added successfully",
-      balance: wallet.balance,
-    });
-
   } catch (err) {
-    await session.abortTransaction();
-    session.endSession();
     next(err);
   }
 };
-exports.redeemMoney = async (req, res, next) => {
-  
-  const session = await mongoose.startSession();
 
-  try {
+
+exports.redeemMoney = async (req, res, next) => {
+  try{
     if (!req.body || Object.keys(req.body).length === 0) {
       const err = new Error("Request body is missing");
       err.statusCode = 400;
       throw err;
     }
-    session.startTransaction();
-
-    
 
     const { amount } = req.body;
 
@@ -87,8 +94,11 @@ exports.redeemMoney = async (req, res, next) => {
       err.statusCode = 400;
       throw err;
     }
-
-    const wallet = await Wallet.findOneAndUpdate(
+    const session = await mongoose.startSession();
+    try{
+      
+      session.startTransaction();
+       const wallet = await Wallet.findOneAndUpdate(
       {
         userId: req.userId,
         balance: { $gte: amount }
@@ -120,9 +130,14 @@ exports.redeemMoney = async (req, res, next) => {
       balance: wallet.balance,
     });
 
-  } catch (err) {
-    await session.abortTransaction();
-    session.endSession();
+    }catch(err){
+      await session.abortTransaction();
+      session.endSession();
+      throw err;
+    }
+
+  }catch(err){
     next(err);
   }
+ 
 };

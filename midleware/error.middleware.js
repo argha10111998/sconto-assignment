@@ -1,5 +1,5 @@
 module.exports = (err, req, res, next) => {
-  console.error(err); // full error for logs
+  // console.error(err); // full error for logs
 
   // JSON parse error
   if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
