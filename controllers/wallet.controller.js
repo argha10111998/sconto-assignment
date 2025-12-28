@@ -1,6 +1,6 @@
 const Wallet = require("../models/wallet");
 const Transaction = require("../models/transaction");
-
+const mongoose = require("mongoose");
 exports.getWallet = async (req, res, next) => {
   try{
    
@@ -15,71 +15,88 @@ exports.getWallet = async (req, res, next) => {
 };
 
 exports.addMoney = async (req, res, next) => {
-  try {
-    const { amount } = req.body;
+  const session = await mongoose.startSession();
 
-    if (!amount) {
-      const err = new Error("Amount Required");
+  try {
+    if (!req.body || Object.keys(req.body).length === 0) {
+      const err = new Error("Request body is missing");
       err.statusCode = 400;
       throw err;
     }
+    session.startTransaction();
+    
+    const { amount } = req.body;
 
-    if (amount <= 0) {
+    if (!amount || amount <= 0) {
       const err = new Error("Invalid amount");
       err.statusCode = 400;
       throw err;
     }
 
-    // ATOMIC wallet update
     const wallet = await Wallet.findOneAndUpdate(
-      { userId: req.userId },          // Filter by user
-      { $inc: { balance: amount } },   // Atomic increment
-      { new: true }                    // Return the updated wallet
+      { userId: req.userId },
+      { $inc: { balance: amount } },
+      { new: true, session }
     );
 
-    // Create transaction AFTER wallet update
-    await Transaction.create({
+    if (!wallet) {
+      const err = new Error("Wallet not found");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    await Transaction.create([{
       userId: req.userId,
       type: "CREDIT",
       amount,
-    });
+    }], { session });
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(200).json({
       success: true,
       message: "Money added successfully",
-      balance: wallet.balance, // optional: return new balance
+      balance: wallet.balance,
     });
+
   } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
     next(err);
   }
 };
-
 exports.redeemMoney = async (req, res, next) => {
-  try {
-    const { amount } = req.body;
+  
+  const session = await mongoose.startSession();
 
-    if (!amount) {
-      const err = new Error("Amount Required");
+  try {
+    if (!req.body || Object.keys(req.body).length === 0) {
+      const err = new Error("Request body is missing");
       err.statusCode = 400;
       throw err;
     }
+    session.startTransaction();
 
-    if (amount <= 0) {
+    
+
+    const { amount } = req.body;
+
+    if (!amount || amount <= 0) {
       const err = new Error("Invalid amount");
       err.statusCode = 400;
       throw err;
     }
 
-    // ATOMIC wallet deduction
     const wallet = await Wallet.findOneAndUpdate(
       {
         userId: req.userId,
-        balance: { $gte: amount } // ensures sufficient funds
+        balance: { $gte: amount }
       },
       {
         $inc: { balance: -amount }
       },
-      { new: true } // return updated document
+      { new: true, session }
     );
 
     if (!wallet) {
@@ -88,20 +105,24 @@ exports.redeemMoney = async (req, res, next) => {
       throw err;
     }
 
-    // Create transaction AFTER wallet update
-    await Transaction.create({
+    await Transaction.create([{
       userId: req.userId,
       type: "DEBIT",
       amount,
-    });
+    }], { session });
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(200).json({
       success: true,
       message: "Amount redeemed successfully",
-      balance: wallet.balance, // optional
+      balance: wallet.balance,
     });
 
   } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
     next(err);
   }
 };

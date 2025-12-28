@@ -2,14 +2,17 @@ const User = require("../models/user");
 const Wallet = require("../models/wallet"); 
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-
+const mongoose = require("mongoose");
 exports.signup = async (req, res, next) => {
+  const session = await mongoose.startSession();
   try {
     if (!req.body || Object.keys(req.body).length === 0) {
       const err = new Error("Request body is missing");
       err.statusCode = 400;
       throw err;
     }
+    session.startTransaction();
+   
 
     const { name, email, phone, password } = req.body;
 
@@ -58,21 +61,31 @@ exports.signup = async (req, res, next) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
+    const user = await User.create([{
       name: name.trim(),
       email,
       phone,
       password: hashedPassword,
-    });
+    }], { session });
 
-    await Wallet.create({ userId: user._id, balance: 0 });
+    // console.log(user)
+    // await Wallet.create({ userId: user._id, balance: 0 });
 
+    await Wallet.create([{
+      userId: user[0]._id,
+      balance: 0,
+    }], { session });
+
+    await session.commitTransaction();
+    session.endSession();
     res.status(201).json({
       success: true,
       message: "User registered successfully",
     });
 
   } catch (err) {
+    await session.abortTransaction();
+    session.endSession();
     next(err); 
   }
 };
@@ -95,6 +108,7 @@ exports.login = async (req, res, next) => {
       throw err;
     }
 
+    
     const user = await User.findOne({ email });
     if (!user) {
       const err = new Error("Invalid credentials");
