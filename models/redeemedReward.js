@@ -7,4 +7,4 @@ const RedeemedRewardSchema = new mongoose.Schema({
   redeemedAt: { type: Date, default: Date.now },
 });
 
-module.exports = mongoose.model("RedeemedReward", RedeemedRewardSchema);
+module.exports = mongoose.model("redeemed_rewards", RedeemedRewardSchema);
