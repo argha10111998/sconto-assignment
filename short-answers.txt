@@ -1,0 +1,31 @@
+1. Why did you choose your folder structure?
+
+Answer:I chose a feature-based modular folder structure rather than a flat or layer-only structure.
+Controllers are separated by domain (auth, wallet, rewards), models are centralized,
+and routes map cleanly to controllers. This structure improves readability, scalability, 
+and ownership—each feature can evolve independently without tightly coupling unrelated logic.
+For example, wallet logic (addMoney, redeemMoney, redeemVoucher) is isolated from authentication
+concerns, which reduces accidental side effects.
+
+2. How did you implement wallet atomicity to avoid race conditions?
+
+Answer:Wallet atomicity was implemented using MongoDB’s document-level atomic operations combined with
+transactions. For balance updates, I avoided the unsafe “read → modify → save” pattern and 
+instead used conditional atomic updates with $inc and $gte inside findOneAndUpdate. This ensures that balance checks and deductions happen in a single atomic operation,
+preventing race conditions under concurrent requests.
+
+3. Explain the trade-offs in your indexing strategy.
+
+Answer:The trade-off is that while indexes significantly improve read performance, they introduce write overhead, especially in write-heavy flows like wallet transactions.
+
+4. How would you scale this system if the user count reaches 10 million?
+
+Answer:To scale to 10 million users, I would introduce horizontal scaling at both application and database levels.
+The API layer would be stateless and scaled behind a load balancer. MongoDB would be deployed as
+a sharded cluster, sharding collections like Wallet and Transaction by userId to distribute load
+evenly.
+
+5. What do you consider the riskiest part of your current design?
+
+Answer:The riskiest part is transaction contention on hot wallets, especially for users performing
+frequent balance operations. High write contention can increase latency or cause transaction retries under load.
