@@ -24,3 +24,5 @@
    -Flipkart "69510ef7028877ce3925fc9c"
    -Myntra "69510ef7028877ce3925fc9d"
    -Swiggy 69510ef7028877ce3925fc9e
+
+6. import Sconto Assignment Postman Collection.postman_collection to see test examples.
