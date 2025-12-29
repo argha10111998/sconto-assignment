@@ -12,7 +12,7 @@
    -PORT
 
 3. Start server
-   nodemon index.js
+   nodemon index.js / node index.js
 
 4. add token to requests after login returns token
    format:
